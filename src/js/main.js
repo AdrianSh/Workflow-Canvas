@@ -3,13 +3,14 @@ function registerEventListener(mainElement = "", event = "click", subelement = "
 }
 
 class Activity {
-  constructor(name = "Start", imgURL = "./img/start.png") {
+  constructor(name = "Start", imgURL = "./img/start.png", form = "circle") {
     this.imgURL = imgURL;
+    this.form = form;
   }
 
   get img() {
-    let imgElement = document.createElement('img')
-    imgElement.src = this.imgURL
+    let imgElement = document.createElement('img');
+    imgElement.src = this.imgURL;
     return imgElement;
   }
 
@@ -24,20 +25,24 @@ class Activity {
   }
 
   onCollide(pos = {x: null, y: null}, instance){
-    /* For a simple rectangle
-    if(!pos || !pos.x  || !pos.y || pos.x < instance.currentPosition.x || pos.x > (instance.currentPosition.x + instance.currentPosition.width) ||
-      pos.y < instance.currentPosition.y || pos.y > (instance.currentPosition.y + instance.currentPosition.height) )
-      return;
-     */
+    if(instance.form == "circle" && !instance._circleCollide(pos, instance) || instance.form !== "circle" && !instance._rectangleCollide(pos, instance)){
+      console.log(`Ha colisionado!`);
+    }
+  }
+
+  _rectangleCollide(pos, instance){
+    return !pos || !pos.x  || !pos.y || pos.x < instance.currentPosition.x || pos.x > (instance.currentPosition.x + instance.currentPosition.width) ||
+      pos.y < instance.currentPosition.y || pos.y > (instance.currentPosition.y + instance.currentPosition.height);
+  }
+
+  _circleCollide(pos, instance){
     let radius = instance.currentPosition.width / 2;
     let circleCenter = { x: instance.currentPosition.x + radius, y: instance.currentPosition.y + radius};
     let distX = pos.x - circleCenter.x;
     let distY = pos.y - circleCenter.y;
     let distance = Math.sqrt( distX * distX + distY * distY );
 
-    if(distance > radius) return;
-
-    console.log(`Ha colisionado!`);
+    return distance > radius;
   }
 }
 
@@ -51,8 +56,6 @@ class WorkflowCanvas {
     this.loadSizes();
     this.loadListeners();
     this.loadActivities();
-
-
   }
 
   get ctx() {
@@ -69,6 +72,7 @@ class WorkflowCanvas {
 
   loadListeners() {
     this.addListener("click", this.onClick);
+    this.addListener("mousedown", this.onMousedown);
   }
 
   loadActivities() {
@@ -104,10 +108,25 @@ class WorkflowCanvas {
     });
   }
 
+  onMousedown(e, instance) {
+    instance.canvas.on('mouseup mousemove', function handler(e) {
+      if (e.type === 'mouseup') {
+        // click
+        console.log('click!!');
+      } else {
+        // drag
+        console.log('drag on!!!');
+      }
+
+      console.log('drag off!!');
+      instance.canvas.off('mouseup mousemove', handler);
+    });
+  }
+
   init() {
     // Fill background
-    this._ctx.fillStyle = "#f3f3f3"
-    this._ctx.fillRect(0, 0, this.size.width, this.size.height)
+    this._ctx.fillStyle = "#f3f3f3";
+    this._ctx.fillRect(0, 0, this.size.width, this.size.height);
     console.log("init")
   }
 
@@ -118,4 +137,4 @@ $(() => {
   window.w = new WorkflowCanvas();
   w.init();
 
-})
+});
