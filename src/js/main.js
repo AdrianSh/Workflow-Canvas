@@ -24,9 +24,19 @@ class Activity {
   }
 
   onCollide(pos = {x: null, y: null}, instance){
+    /* For a simple rectangle
     if(!pos || !pos.x  || !pos.y || pos.x < instance.currentPosition.x || pos.x > (instance.currentPosition.x + instance.currentPosition.width) ||
       pos.y < instance.currentPosition.y || pos.y > (instance.currentPosition.y + instance.currentPosition.height) )
       return;
+     */
+    let radius = instance.currentPosition.width / 2;
+    let circleCenter = { x: instance.currentPosition.x + radius, y: instance.currentPosition.y + radius};
+    let distX = pos.x - circleCenter.x;
+    let distY = pos.y - circleCenter.y;
+    let distance = Math.sqrt( distX * distX + distY * distY );
+
+    if(distance > radius) return;
+
     console.log(`Ha colisionado!`);
   }
 }
