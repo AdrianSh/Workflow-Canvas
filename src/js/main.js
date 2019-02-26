@@ -16,7 +16,7 @@ class Activity {
 
   get position() { return this.currentPosition }
 
-  draw(ctx, posX = 0, posY = 0, width = 48, height = 48){
+  draw(ctx, posX = 0, posY = 50, width = 48, height = 48){
     let img = this.img;
     img.addEventListener("load", () => {
       ctx.drawImage(img, posX, posY, width, height)
@@ -24,25 +24,86 @@ class Activity {
     this.currentPosition = { x: posX, y: posY, width: width, height: height };
   }
 
-  onCollide(pos = {x: null, y: null}, instance){
-    if(instance.form == "circle" && !instance._circleCollide(pos, instance) || instance.form !== "circle" && !instance._rectangleCollide(pos, instance)){
+  onCollide(pos = {x: null, y: null}){
+    if(this.form == "circle" && !this._circleCollide(pos) || this.form !== "circle" && !this._rectangleCollide(pos)){
       console.log(`Ha colisionado!`);
     }
   }
 
-  _rectangleCollide(pos, instance){
-    return !pos || !pos.x  || !pos.y || pos.x < instance.currentPosition.x || pos.x > (instance.currentPosition.x + instance.currentPosition.width) ||
-      pos.y < instance.currentPosition.y || pos.y > (instance.currentPosition.y + instance.currentPosition.height);
+  _rectangleCollide(pos){
+    return !pos || !pos.x  || !pos.y || pos.x < this.currentPosition.x || pos.x > (this.currentPosition.x + this.currentPosition.width) ||
+      pos.y < this.currentPosition.y || pos.y > (this.currentPosition.y + this.currentPosition.height);
   }
 
-  _circleCollide(pos, instance){
-    let radius = instance.currentPosition.width / 2;
-    let circleCenter = { x: instance.currentPosition.x + radius, y: instance.currentPosition.y + radius};
+  _circleCollide(pos){
+    let radius = this.currentPosition.width / 2;
+    let circleCenter = { x: this.currentPosition.x + radius, y: this.currentPosition.y + radius};
     let distX = pos.x - circleCenter.x;
     let distY = pos.y - circleCenter.y;
     let distance = Math.sqrt( distX * distX + distY * distY );
 
     return distance > radius;
+  }
+}
+
+class Menu {
+  constructor(ctx){
+    this.buttons = [{ url: "./img/menu/icons8-ajustes-480.png", label: "Settings", onClick: function(){
+      console.log(this.label);
+      }}, { url: "./img/menu/icons8-idea-480.png", label: "Idea"}, { url: "./img/menu/icons8-menos-96.png", label: "Stop"}];
+    this.ctx = ctx;
+    this.buttonSize = 25;
+    this.menuPosition = {x: 0, y: 0, width: this.ctx.canvas.width, height: 35, lastX: 5, lastY: 5};
+    this.initUI();
+    this.loadButtons();
+  }
+
+  get bounds () {
+    return this.menuPosition;
+  }
+
+  initUI() {
+    this.ctx.fillStyle = "#FFFFFF";
+    this.ctx.fillRect(this.menuPosition.x, this.menuPosition.y, this.menuPosition.width, this.menuPosition.height);
+    this.ctx.fillStyle = "#ececec";
+    this.ctx.lineWidth = 0.3;
+    this.ctx.strokeRect(this.menuPosition.x, this.menuPosition.y, this.menuPosition.width, this.menuPosition.height);
+
+  }
+
+  loadButtons () {
+    this.buttons.forEach(function (b) {
+      b.x = this.menuPosition.lastX;
+      b.y = this.menuPosition.lastY;
+      b.width = this.buttonSize;
+      b.height = this.buttonSize;
+      this.menuPosition.lastX += this.buttonSize; // Horizontal menu
+
+      b.html = document.createElement('img');
+      b.html.src = b.url;
+      b.html.addEventListener("load", () => {
+        this.drawButton(b);
+      });
+    }.bind(this))
+  }
+
+  drawButton(button) {
+    this.ctx.drawImage(button.html, button.x, button.y, this.buttonSize, this.buttonSize);
+  }
+
+  onClick(e, pos){
+    console.log("Click on menu");
+    let button = this.buttons.find(b => this._circleCollide(pos, b));
+    if(button && typeof button.onClick == 'function') button.onClick.bind(button)(e);
+  }
+
+  _circleCollide(ePos, pos = {x, y, width, height}){
+    let radius = pos.width / 2;
+    let circleCenter = { x: pos.x + radius, y: pos.y + radius};
+    let distX = ePos.x - circleCenter.x;
+    let distY = ePos.y - circleCenter.y;
+    let distance = Math.sqrt( distX * distX + distY * distY );
+    return distance <= radius;
   }
 }
 
@@ -54,8 +115,11 @@ class WorkflowCanvas {
     this.collideListeners = [];
 
     this.loadSizes();
+    this.init();
     this.loadListeners();
     this.loadActivities();
+
+    this.menu = new Menu(this._ctx);
   }
 
   get ctx() {
@@ -72,7 +136,6 @@ class WorkflowCanvas {
 
   loadListeners() {
     this.addListener("click", this.onClick);
-    this.addListener("mousedown", this.onMousedown);
   }
 
   loadActivities() {
@@ -82,11 +145,7 @@ class WorkflowCanvas {
   }
 
   addListener(event = "click", callback) {
-    let instance = this;
-    let proxy = function(e) {
-      callback(e, instance);
-    };
-    this.canvas.on(event, proxy);
+    this.canvas.on(event, callback.bind(this));
   }
 
   /**
@@ -95,21 +154,22 @@ class WorkflowCanvas {
    * @param activity Instance of the activity
    */
   addColliderListener(f, activity) {
-    this.collideListeners.push(function(p){ f(p, activity); })
+    this.collideListeners.push(f.bind(activity))
   }
 
-  onClick(e, instance) {
-    let canvas = $(e.target);
-    let pos = { x : e.pageX - canvas.offset().left, y: e.pageY - canvas.offset().top };
+  onClick(e) {
+    let pos = { x : e.pageX - this.canvas.offset().left, y: e.pageY - this.canvas.offset().top };
     console.log(pos);
 
-    instance.collideListeners.forEach( e => {
-      e(pos);
+    if(this._rectangleCollide(pos, this.menu.bounds))
+      this.menu.onClick.bind(this.menu)(e, pos);
+    else this.collideListeners.forEach( e => {
+        e(pos);
     });
   }
 
-  onMousedown(e, instance) {
-    instance.canvas.on('mouseup mousemove', function handler(e) {
+  onMousedown(e) {
+    this.canvas.on('mouseup mousemove', function handler(e) {
       if (e.type === 'mouseup') {
         // click
         console.log('click!!');
@@ -119,8 +179,13 @@ class WorkflowCanvas {
       }
 
       console.log('drag off!!');
-      instance.canvas.off('mouseup mousemove', handler);
-    });
+      this.canvas.off('mouseup mousemove', handler);
+    }.bind(this));
+  }
+
+  _rectangleCollide(ePos, pos = {x, y, width, height}){
+    return !(!ePos || !ePos.x  || !ePos.y || ePos.x < pos.x || ePos.x > (pos.x + pos.width) ||
+      ePos.y < pos.y || ePos.y > (pos.y + pos.height));
   }
 
   init() {
@@ -129,12 +194,10 @@ class WorkflowCanvas {
     this._ctx.fillRect(0, 0, this.size.width, this.size.height);
     console.log("init")
   }
-
-
 }
 
 $(() => {
   window.w = new WorkflowCanvas();
-  w.init();
+
 
 });
