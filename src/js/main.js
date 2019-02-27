@@ -6,6 +6,7 @@ class Activity {
   constructor(name = "Start", imgURL = "./img/start.png", form = "circle") {
     this.imgURL = imgURL;
     this.form = form;
+    this.name = name;
   }
 
   get img() {
@@ -24,8 +25,11 @@ class Activity {
     this.currentPosition = { x: posX, y: posY, width: width, height: height };
   }
 
-  onCollide(pos = {x: null, y: null}){
+  onCollide(pos = {x: null, y: null}, type = "click", event = null){
     if(this.form == "circle" && !this._circleCollide(pos) || this.form !== "circle" && !this._rectangleCollide(pos)){
+      if(type == "click"){
+        console.log(`Click on the activity: ${this.name}`);
+      }
       console.log(`Ha colisionado!`);
     }
   }
@@ -92,8 +96,7 @@ class Menu {
   }
 
   onClick(e, pos){
-    console.log("Click on menu");
-    let button = this.buttons.find(b => this._circleCollide(pos, b));
+    let button = this.buttons.find(b => this._circleCollide(pos, b)); // If the button's shape is circular
     if(button && typeof button.onClick == 'function') button.onClick.bind(button)(e);
   }
 
@@ -150,7 +153,7 @@ class WorkflowCanvas {
 
   /**
    * Add a function which catch the position where is the main action an then.
-   * @param f Function function( { x, y}, activityInstance )
+   * @param f Function function( { x, y}, type, event)
    * @param activity Instance of the activity
    */
   addColliderListener(f, activity) {
@@ -163,8 +166,8 @@ class WorkflowCanvas {
 
     if(this._rectangleCollide(pos, this.menu.bounds))
       this.menu.onClick.bind(this.menu)(e, pos);
-    else this.collideListeners.forEach( e => {
-        e(pos);
+    else this.collideListeners.forEach( collLis => {
+      collLis(pos, "click", e);
     });
   }
 
